@@ -55,6 +55,7 @@ type DataPoint struct {
 
 type DataPoints []DataPoint
 
+// isGood() returns true if Low, Mid and High clouds percentage is less than MAX_CLOUD_COVER
 func (d DataPoint) isGood() bool {
 	maxCloudCoverInt, _ := strconv.Atoi(os.Getenv("MAX_CLOUD_COVER"))
 	maxCloudCoverInt64 := int64(maxCloudCoverInt)
@@ -66,6 +67,7 @@ func (d DataPoint) isGood() bool {
 	}
 }
 
+// atNight() returns true if time is between NIGHT_START_HOUR and NIGHT_END_HOUR
 func (d DataPoint) atNight() bool {
 	nightStart, _ := strconv.Atoi(os.Getenv("NIGHT_START_HOUR"))
 	nightEnd, _ := strconv.Atoi(os.Getenv("NIGHT_END_HOUR"))
@@ -77,6 +79,7 @@ func (d DataPoint) atNight() bool {
 	}
 }
 
+// Good() returns DataPoints which are after "Now", are "Good" and within "Night" defined by NIGHT_START_HOUR and NIGHT_END_HOUR
 func (dp DataPoints) Good() DataPoints {
 	good := DataPoints{}
 	for _, v := range dp {
@@ -88,6 +91,9 @@ func (dp DataPoints) Good() DataPoints {
 	return good
 }
 
+// onlyStartPoints() returns DataPoints correstonding to the beginning of NIGHT_HOURS_STREAK sets
+// For example, if NIGHT_HOURS_STREAK = 4 then this algorythm will try to find all 4-hours long sets of points.
+// Should be applied to "Good" points.
 func (dp DataPoints) onlyStartPoints() DataPoints {
 	onlyStartPoints := DataPoints{}
 	hoursStreak, _ := strconv.Atoi(os.Getenv("NIGHT_HOURS_STREAK"))
@@ -100,10 +106,12 @@ func (dp DataPoints) onlyStartPoints() DataPoints {
 			sum += int(diff.Hours())
 		}
 
+		// sum > hoursStreak means interval between points is not 1 hour long.
 		if sum > hoursStreak {
 			i++
 			continue
 		} else {
+			// This allows to exclude 2 sequential 4-hours streaks on the same night.
 			if i > 0 && dp[i].Time.Sub(dp[i-1].Time).Hours() == 1 {
 				i++
 				continue
@@ -116,6 +124,7 @@ func (dp DataPoints) onlyStartPoints() DataPoints {
 	return onlyStartPoints
 }
 
+// Init() goes to MB_API_ENDPOINT makes HTTPS request and stores result as MBCloudsResponse object
 func (mbresponse *MBCloudsResponse) Init() {
 	client := &http.Client{}
 	MeteoblueAPIEndpoint := os.Getenv("MB_API_ENDPOINT")
@@ -158,6 +167,7 @@ func (mbresponse *MBCloudsResponse) Init() {
 
 }
 
+// Points() return DataPoints object based on MBCloudsResponse fields
 func (data MBCloudsResponse) Points() DataPoints {
 	points := DataPoints{}
 
