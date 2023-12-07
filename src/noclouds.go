@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-co-op/gocron"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -225,25 +226,7 @@ func getAllStartPoints() DataPoints {
 	return startPoints
 }
 
-// func checkNext24H(bot *tgbotapi.BotAPI, chatID int64, checkIntervalHours int) {
-// 	s := gocron.NewScheduler(time.UTC)
-
-// 	_, err := s.Every(checkIntervalHours).Hours().Do(func() {
-// 		startPoints := getAllStartPoints()
-// 		next24HStartPoints := startPoints.next24H()
-// 		if len(next24HStartPoints) != 0 {
-// 			messageText := next24HStartPoints.Print()
-// 			sendMessage(bot, chatID, messageText)
-// 		}
-// 	})
-// 	if err != nil {
-// 		log.Println(err)
-// 	}
-
-// 	s.StartAsync()
-// }
-
-func handleStart(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
+func checkNext24H(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	var numericKeyboard = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton("Прогноз на 7 днів"),
@@ -253,18 +236,41 @@ func handleStart(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	if update.Message != nil {
 		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
 
-		if update.Message.IsCommand() && update.Message.Command() == "start" {
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Розпочнімо. Тицяй кнопки!")
+		if update.Message.Text == "Моніторити 24 години" {
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Добре. Стежитиму за ситуацією")
 			msg.ReplyMarkup = numericKeyboard
 
 			if _, err := bot.Send(msg); err != nil {
 				log.Panic(err)
 			}
+
+			s := gocron.NewScheduler(time.UTC)
+			checkIntervalHours, _ := strconv.Atoi(os.Getenv("CHECK_INTERVAL_HOURS"))
+
+			_, err := s.Every(checkIntervalHours).Minutes().Do(func() {
+				startPoints := getAllStartPoints()
+				next24HStartPoints := startPoints.next24H()
+				if len(next24HStartPoints) != 0 {
+					messageText := next24HStartPoints.Print()
+					msg := tgbotapi.NewMessage(update.Message.Chat.ID, messageText)
+					msg.ReplyMarkup = numericKeyboard
+
+					if _, err := bot.Send(msg); err != nil {
+						log.Panic(err)
+					}
+				}
+			})
+			if err != nil {
+				log.Println(err)
+			}
+
+			s.StartAsync()
+
 		}
 	}
 }
 
-func handle7D(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
+func handleChat(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	var numericKeyboard = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton("Прогноз на 7 днів"),
@@ -274,13 +280,19 @@ func handle7D(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 	if update.Message != nil {
 		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
 
-		if update.Message.Text == "Прогноз на 7 днів" {
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, getAllStartPoints().Print())
-			msg.ReplyMarkup = numericKeyboard
+		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
+		msg.ReplyMarkup = numericKeyboard
 
-			if _, err := bot.Send(msg); err != nil {
-				log.Panic(err)
-			}
+		if update.Message.IsCommand() && update.Message.Command() == "start" {
+			msg.Text = "Розпочнімо. Тицяй кнопку!"
+		} else if update.Message.Text == "Прогноз на 7 днів" {
+			msg.Text = getAllStartPoints().Print()
+		} else {
+			msg.Text = "Не розумію"
+		}
+
+		if _, err := bot.Send(msg); err != nil {
+			log.Panic(err)
 		}
 	}
 }
@@ -293,12 +305,24 @@ func main() {
 	bot.Debug = true
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
+	// Start cron TODO
+
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 	updates := bot.GetUpdatesChan(u)
 
 	for update := range updates {
-		handleStart(bot, update)
-		handle7D(bot, update)
+		handleChat(bot, update)
 	}
 }
+
+// TODO
+// default values for env variables
+// start cron on the very beginning
+// add env var for CHAT_ID
+// add logging
+// add exception handling
+// remove debug
+// set messages as constants
+// implement cron logic which prevents message duplication (save state)
+// run cron only from 9 to 9
