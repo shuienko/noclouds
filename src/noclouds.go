@@ -226,48 +226,34 @@ func getAllStartPoints() DataPoints {
 	return startPoints
 }
 
-func checkNext24H(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
-	var numericKeyboard = tgbotapi.NewReplyKeyboard(
-		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton("Прогноз на 7 днів"),
-		),
-	)
+func checkNext24H(bot *tgbotapi.BotAPI) {
 
-	if update.Message != nil {
-		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
+	chatID, _ := strconv.Atoi(os.Getenv("CHAT_ID"))
+	checkIntervalHours, _ := strconv.Atoi(os.Getenv("CHECK_INTERVAL_HOURS"))
 
-		if update.Message.Text == "Моніторити 24 години" {
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Добре. Стежитиму за ситуацією")
-			msg.ReplyMarkup = numericKeyboard
+	msg := tgbotapi.NewMessage(int64(chatID), "")
+
+	s := gocron.NewScheduler(time.UTC)
+
+	_, err := s.Every(checkIntervalHours).Minutes().Do(func() {
+		startPoints := getAllStartPoints()
+		next24HStartPoints := startPoints.next24H()
+		if len(next24HStartPoints) > 0 {
+			msg.Text = next24HStartPoints.Print()
+			msg.ChatID = int64(chatID)
 
 			if _, err := bot.Send(msg); err != nil {
 				log.Panic(err)
 			}
-
-			s := gocron.NewScheduler(time.UTC)
-			checkIntervalHours, _ := strconv.Atoi(os.Getenv("CHECK_INTERVAL_HOURS"))
-
-			_, err := s.Every(checkIntervalHours).Minutes().Do(func() {
-				startPoints := getAllStartPoints()
-				next24HStartPoints := startPoints.next24H()
-				if len(next24HStartPoints) != 0 {
-					messageText := next24HStartPoints.Print()
-					msg := tgbotapi.NewMessage(update.Message.Chat.ID, messageText)
-					msg.ReplyMarkup = numericKeyboard
-
-					if _, err := bot.Send(msg); err != nil {
-						log.Panic(err)
-					}
-				}
-			})
-			if err != nil {
-				log.Println(err)
-			}
-
-			s.StartAsync()
-
+		} else {
+			log.Println("No good weather next 24h")
 		}
+	})
+	if err != nil {
+		log.Println(err)
 	}
+
+	s.StartAsync()
 }
 
 func handleChat(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
@@ -305,7 +291,8 @@ func main() {
 	bot.Debug = true
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
-	// Start cron TODO
+	// Start check in background
+	checkNext24H(bot)
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
