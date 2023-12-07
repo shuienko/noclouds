@@ -10,6 +10,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type MBCloudsResponse struct {
@@ -139,11 +141,13 @@ func (dp DataPoints) next24H() DataPoints {
 	return lessThan24H
 }
 
-func (dp DataPoints) Print() {
-	fmt.Println("Безхмарна погода:")
+func (dp DataPoints) Print() string {
+	out := "Безхмарна погода:\n"
 	for _, point := range dp {
-		fmt.Println("  -", point.Time.Format("Mon - Jan 02 15:04"), "|", point.LowClouds, point.MidClouds, point.HighClouds)
+		out += fmt.Sprintln("  -", point.Time.Format("Mon - Jan 02 15:04"), "|", point.LowClouds, point.MidClouds, point.HighClouds)
 	}
+
+	return out
 }
 
 // Init() goes to MB_API_ENDPOINT makes HTTPS request and stores result as MBCloudsResponse object
@@ -210,7 +214,7 @@ func (data MBCloudsResponse) Points() DataPoints {
 	return points
 }
 
-func main() {
+func getAllStartPoints() DataPoints {
 	data := MBCloudsResponse{}
 	data.Init()
 
@@ -218,6 +222,48 @@ func main() {
 	pointsGood := points.Good()
 	startPoints := pointsGood.onlyStartPoints()
 
-	pointsGood.Print()
-	startPoints.Print()
+	return startPoints
+}
+
+// func checkNext24H(bot *tgbotapi.BotAPI, chatID int64, checkIntervalHours int) {
+// 	s := gocron.NewScheduler(time.UTC)
+
+// 	_, err := s.Every(checkIntervalHours).Hours().Do(func() {
+// 		startPoints := getAllStartPoints()
+// 		next24HStartPoints := startPoints.next24H()
+// 		if len(next24HStartPoints) != 0 {
+// 			messageText := next24HStartPoints.Print()
+// 			sendMessage(bot, chatID, messageText)
+// 		}
+// 	})
+// 	if err != nil {
+// 		log.Println(err)
+// 	}
+
+// 	s.StartAsync()
+// }
+
+func main() {
+	bot, err := tgbotapi.NewBotAPI(os.Getenv("TG_BOT_TOKEN"))
+	if err != nil {
+		log.Panic(err)
+	}
+
+	bot.Debug = true
+
+	log.Printf("Authorized on account %s", bot.Self.UserName)
+
+	u := tgbotapi.NewUpdate(0)
+	u.Timeout = 60
+
+	updates := bot.GetUpdatesChan(u)
+
+	for update := range updates {
+		if update.Message != nil {
+			log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
+
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, getAllStartPoints().Print())
+			bot.Send(msg)
+		}
+	}
 }
