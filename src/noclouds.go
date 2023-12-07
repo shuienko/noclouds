@@ -124,6 +124,28 @@ func (dp DataPoints) onlyStartPoints() DataPoints {
 	return onlyStartPoints
 }
 
+// next24H() returns DataPoints within 24 hour range from now
+func (dp DataPoints) next24H() DataPoints {
+	lessThan24H := DataPoints{}
+	now := time.Now()
+
+	for _, point := range dp {
+		diff := point.Time.Sub(now)
+		if diff.Hours() < 24 {
+			lessThan24H = append(lessThan24H, point)
+		}
+	}
+
+	return lessThan24H
+}
+
+func (dp DataPoints) Print() {
+	fmt.Println("Безхмарна погода:")
+	for _, point := range dp {
+		fmt.Println("  -", point.Time.Format("Mon - Jan 02 15:04"), "|", point.LowClouds, point.MidClouds, point.HighClouds)
+	}
+}
+
 // Init() goes to MB_API_ENDPOINT makes HTTPS request and stores result as MBCloudsResponse object
 func (mbresponse *MBCloudsResponse) Init() {
 	client := &http.Client{}
@@ -195,5 +217,7 @@ func main() {
 	points := data.Points()
 	pointsGood := points.Good()
 	startPoints := pointsGood.onlyStartPoints()
-	fmt.Println(startPoints)
+
+	pointsGood.Print()
+	startPoints.Print()
 }
