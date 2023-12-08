@@ -395,3 +395,5 @@ func main() {
 // add logging
 // add exception handling
 // set messages as constants
+// Dockerfile impovements
+// Autobuild and push
