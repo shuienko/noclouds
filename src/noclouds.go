@@ -385,6 +385,7 @@ func handleChat(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 			msg.Text = badRequestMessage
 		}
 
+		log.Println("INFO: sending message to Telegram")
 		if _, err := bot.Send(msg); err != nil {
 			log.Println("ERROR: cannot send message", err)
 		}
