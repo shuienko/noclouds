@@ -16,7 +16,13 @@ import (
 )
 
 const (
-	stateFilePath = "state.txt" // 0 - last message was about bad forecast, 1 - about good
+	defaultStateFilePath    = "state.txt" // 0 - last message was about bad forecast, 1 - about good
+	defaultMaxCloudCover    = "25"
+	defaultNightStartHour   = "22"
+	defaultNightEndHour     = "5"
+	defaultNightHoursStreak = "4"
+	defaultMBApiEndpoint    = "https://my.meteoblue.com/packages/clouds-1h?"
+	defaultCronExpression   = "0 8,12,16,20 * * *"
 )
 
 type MBCloudsResponse struct {
@@ -63,10 +69,30 @@ type DataPoint struct {
 type DataPoints []DataPoint
 type State bool
 
+func getEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
+}
+
+func toInt(s string) int {
+	if out, err := strconv.Atoi(s); err == nil {
+		return out
+	}
+	return 0
+}
+
+func toInt64(s string) int64 {
+	if out, err := strconv.Atoi(s); err == nil {
+		return int64(out)
+	}
+	return 0
+}
+
 // isGood() returns true if Low, Mid and High clouds percentage is less than MAX_CLOUD_COVER
 func (d DataPoint) isGood() bool {
-	maxCloudCoverInt, _ := strconv.Atoi(os.Getenv("MAX_CLOUD_COVER"))
-	maxCloudCoverInt64 := int64(maxCloudCoverInt)
+	maxCloudCoverInt64 := toInt64(getEnv("MAX_CLOUD_COVER", defaultMaxCloudCover))
 
 	if d.HighClouds <= maxCloudCoverInt64 && d.MidClouds <= maxCloudCoverInt64 && d.LowClouds <= maxCloudCoverInt64 {
 		return true
@@ -77,8 +103,8 @@ func (d DataPoint) isGood() bool {
 
 // atNight() returns true if time is between NIGHT_START_HOUR and NIGHT_END_HOUR
 func (d DataPoint) atNight() bool {
-	nightStart, _ := strconv.Atoi(os.Getenv("NIGHT_START_HOUR"))
-	nightEnd, _ := strconv.Atoi(os.Getenv("NIGHT_END_HOUR"))
+	nightStart := toInt(getEnv("NIGHT_START_HOUR", defaultNightStartHour))
+	nightEnd := toInt(getEnv("NIGHT_END_HOUR", defaultNightEndHour))
 
 	if d.Time.Hour() >= nightStart || d.Time.Hour() <= nightEnd {
 		return true
@@ -104,7 +130,7 @@ func (dp DataPoints) Good() DataPoints {
 // Should be applied to "Good" points.
 func (dp DataPoints) onlyStartPoints() DataPoints {
 	onlyStartPoints := DataPoints{}
-	hoursStreak, _ := strconv.Atoi(os.Getenv("NIGHT_HOURS_STREAK"))
+	hoursStreak := toInt(getEnv("NIGHT_HOURS_STREAK", defaultNightHoursStreak))
 
 	i := 0
 	for i < len(dp)-hoursStreak {
@@ -147,6 +173,7 @@ func (dp DataPoints) next24H() DataPoints {
 	return lessThan24H
 }
 
+// Print() returns Markdown string which represents DataPoints
 func (dp DataPoints) Print() string {
 	out := "`"
 	for _, point := range dp {
@@ -221,33 +248,35 @@ func (data MBCloudsResponse) Points() DataPoints {
 	return points
 }
 
+// Init() writes forcast state default value for the state file. "0" means bad weather next 24 hours
 func (s State) Init() {
-
 	d := []byte("0")
-	err := os.WriteFile(stateFilePath, d, 0644)
+	err := os.WriteFile(defaultStateFilePath, d, 0644)
 	if err != nil {
 		log.Panic(err)
 	}
 }
 
+// Set() writes state to the state file
 func (s State) Set(b bool) {
 	if b {
 		d := []byte("1")
-		err := os.WriteFile(stateFilePath, d, 0644)
+		err := os.WriteFile(defaultStateFilePath, d, 0644)
 		if err != nil {
 			log.Panic(err)
 		}
 	} else {
 		d := []byte("0")
-		err := os.WriteFile(stateFilePath, d, 0644)
+		err := os.WriteFile(defaultStateFilePath, d, 0644)
 		if err != nil {
 			log.Panic(err)
 		}
 	}
 }
 
+// isGood() returns true if state file contains "1" and false when "0"
 func (s State) isGood() bool {
-	dat, err := os.ReadFile(stateFilePath)
+	dat, err := os.ReadFile(defaultStateFilePath)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -259,21 +288,20 @@ func (s State) isGood() bool {
 	}
 }
 
+// getAllStartPoints() return all time DataPoints with good weather
 func getAllStartPoints() DataPoints {
 	data := MBCloudsResponse{}
 	data.Init()
 
-	points := data.Points()
-	pointsGood := points.Good()
-	startPoints := pointsGood.onlyStartPoints()
+	points := data.Points().Good().onlyStartPoints()
 
-	return startPoints
+	return points
 }
 
+// checkNext24H() is cron job which monitors good/bad weather next 24 hours
 func checkNext24H(bot *tgbotapi.BotAPI) {
-
 	chatID, _ := strconv.Atoi(os.Getenv("CHAT_ID"))
-	cronExpression := os.Getenv("CRON_EXPRESSION")
+	cronExpression := getEnv("CRON_EXPRESSION", defaultCronExpression)
 
 	msg := tgbotapi.NewMessage(int64(chatID), "")
 	msg.ChatID = int64(chatID)
@@ -286,6 +314,7 @@ func checkNext24H(bot *tgbotapi.BotAPI) {
 	_, err := s.Cron(cronExpression).Do(func() {
 		startPoints := getAllStartPoints()
 		next24HStartPoints := startPoints.next24H()
+
 		if len(next24HStartPoints) > 0 && !state.isGood() {
 			msg.Text = "🥳 Хороша погода сьогодні!"
 			msg.Text += next24HStartPoints.Print()
@@ -311,13 +340,15 @@ func checkNext24H(bot *tgbotapi.BotAPI) {
 	s.StartAsync()
 }
 
+// handleChat() is telegram bot handler for chat interactions
 func handleChat(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
+	// Set keyboard
 	var numericKeyboard = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton("Прогноз на 7 днів"),
 		),
 	)
-
+	// Listen for updates
 	if update.Message != nil {
 		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
 
@@ -344,7 +375,8 @@ func main() {
 	if err != nil {
 		log.Panic(err)
 	}
-	bot.Debug = true
+
+	// bot.Debug = true
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
 	// Start 24h check in background
@@ -360,12 +392,12 @@ func main() {
 }
 
 // TODO
-// default values for env variables
+// default values for env variables +
 // start cron on the very beginning +
 // add env var for CHAT_ID +
 // add logging
 // add exception handling
-// remove debug
+// remove debug +
 // set messages as constants
 // implement cron logic which prevents message duplication (save state) +
-// run cron only from 9 to 9
+// run cron only from 9 to 9 +
