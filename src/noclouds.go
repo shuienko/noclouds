@@ -191,7 +191,7 @@ func (dp DataPoints) Print() string {
 
 // Init() goes to MB_API_ENDPOINT makes HTTPS request and stores result as MBCloudsResponse object
 func (mbresponse *MBCloudsResponse) Init() {
-	log.Println("INFO: Init() function started.")
+	log.Println("INFO: Making request to Meteoblue API and parsing response")
 	client := &http.Client{}
 	MeteoblueAPIEndpoint := getEnv("MB_API_ENDPOINT", defaultMBApiEndpoint)
 
@@ -329,7 +329,7 @@ func checkNext24H(bot *tgbotapi.BotAPI) {
 	state.Init()
 
 	_, err = s.Cron(cronExpression).Do(func() {
-		log.Println("INFO: starting cron job in background...")
+		log.Println("INFO: starting cron job")
 		startPoints := getAllStartPoints()
 		next24HStartPoints := startPoints.next24H()
 
@@ -400,6 +400,7 @@ func main() {
 
 	// Start 24h check in background
 	checkNext24H(bot)
+	log.Println("INFO: Background cron job activated")
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
