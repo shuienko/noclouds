@@ -15,6 +15,10 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+const (
+	stateFilePath = "state.txt" // 0 - last message was about bad forecast, 1 - about good
+)
+
 type MBCloudsResponse struct {
 	Metadata Metadata `json:"metadata"`
 	Units    Units    `json:"units"`
@@ -57,6 +61,8 @@ type DataPoint struct {
 }
 
 type DataPoints []DataPoint
+
+type State bool
 
 // isGood() returns true if Low, Mid and High clouds percentage is less than MAX_CLOUD_COVER
 func (d DataPoint) isGood() bool {
@@ -143,10 +149,11 @@ func (dp DataPoints) next24H() DataPoints {
 }
 
 func (dp DataPoints) Print() string {
-	out := "Безхмарна погода:\n"
+	out := "`"
 	for _, point := range dp {
-		out += fmt.Sprintln("  -", point.Time.Format("Mon - Jan 02 15:04"), "|", point.LowClouds, point.MidClouds, point.HighClouds)
+		out += fmt.Sprintln(point.Time.Format("Mon - Jan 02 15:04"), "|", point.LowClouds, point.MidClouds, point.HighClouds)
 	}
+	out += "`"
 
 	return out
 }
@@ -215,6 +222,44 @@ func (data MBCloudsResponse) Points() DataPoints {
 	return points
 }
 
+func (s State) Init() {
+
+	d := []byte("0")
+	err := os.WriteFile(stateFilePath, d, 0644)
+	if err != nil {
+		log.Panic(err)
+	}
+}
+
+func (s State) Set(b bool) {
+	if b {
+		d := []byte("1")
+		err := os.WriteFile(stateFilePath, d, 0644)
+		if err != nil {
+			log.Panic(err)
+		}
+	} else {
+		d := []byte("0")
+		err := os.WriteFile(stateFilePath, d, 0644)
+		if err != nil {
+			log.Panic(err)
+		}
+	}
+}
+
+func (s State) isGood() bool {
+	dat, err := os.ReadFile(stateFilePath)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	if string(dat) == "0" {
+		return false
+	} else {
+		return true
+	}
+}
+
 func getAllStartPoints() DataPoints {
 	data := MBCloudsResponse{}
 	data.Init()
@@ -232,21 +277,31 @@ func checkNext24H(bot *tgbotapi.BotAPI) {
 	checkIntervalHours, _ := strconv.Atoi(os.Getenv("CHECK_INTERVAL_HOURS"))
 
 	msg := tgbotapi.NewMessage(int64(chatID), "")
+	msg.ChatID = int64(chatID)
+	msg.ParseMode = "MarkdownV2"
 
 	s := gocron.NewScheduler(time.UTC)
+	var state State
+	state.Init()
 
 	_, err := s.Every(checkIntervalHours).Minutes().Do(func() {
 		startPoints := getAllStartPoints()
 		next24HStartPoints := startPoints.next24H()
-		if len(next24HStartPoints) > 0 {
+		if len(next24HStartPoints) > 0 && !state.isGood() {
 			msg.Text = next24HStartPoints.Print()
-			msg.ChatID = int64(chatID)
 
 			if _, err := bot.Send(msg); err != nil {
 				log.Panic(err)
 			}
+			state.Set(true)
+		} else if len(next24HStartPoints) == 0 && state.isGood() {
+			msg.Text = "Хорошої погоди не буде наступні 24 години"
+			if _, err := bot.Send(msg); err != nil {
+				log.Panic(err)
+			}
+			state.Set(false)
 		} else {
-			log.Println("No good weather next 24h")
+			log.Println("No changes in weather for the next 24 hour")
 		}
 	})
 	if err != nil {
@@ -273,6 +328,7 @@ func handleChat(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 			msg.Text = "Розпочнімо. Тицяй кнопку!"
 		} else if update.Message.Text == "Прогноз на 7 днів" {
 			msg.Text = getAllStartPoints().Print()
+			msg.ParseMode = "MarkdownV2"
 		} else {
 			msg.Text = "Не розумію"
 		}
@@ -291,7 +347,7 @@ func main() {
 	bot.Debug = true
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
-	// Start check in background
+	// Start 24h check in background
 	checkNext24H(bot)
 
 	u := tgbotapi.NewUpdate(0)
@@ -305,11 +361,11 @@ func main() {
 
 // TODO
 // default values for env variables
-// start cron on the very beginning
-// add env var for CHAT_ID
+// start cron on the very beginning +
+// add env var for CHAT_ID +
 // add logging
 // add exception handling
 // remove debug
 // set messages as constants
-// implement cron logic which prevents message duplication (save state)
+// implement cron logic which prevents message duplication (save state) +
 // run cron only from 9 to 9
