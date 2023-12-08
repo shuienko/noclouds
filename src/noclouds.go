@@ -392,12 +392,6 @@ func main() {
 }
 
 // TODO
-// default values for env variables +
-// start cron on the very beginning +
-// add env var for CHAT_ID +
 // add logging
 // add exception handling
-// remove debug +
 // set messages as constants
-// implement cron logic which prevents message duplication (save state) +
-// run cron only from 9 to 9 +
