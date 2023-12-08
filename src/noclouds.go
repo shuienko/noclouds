@@ -61,7 +61,6 @@ type DataPoint struct {
 }
 
 type DataPoints []DataPoint
-
 type State bool
 
 // isGood() returns true if Low, Mid and High clouds percentage is less than MAX_CLOUD_COVER
@@ -151,7 +150,7 @@ func (dp DataPoints) next24H() DataPoints {
 func (dp DataPoints) Print() string {
 	out := "`"
 	for _, point := range dp {
-		out += fmt.Sprintln(point.Time.Format("Mon - Jan 02 15:04"), "|", point.LowClouds, point.MidClouds, point.HighClouds)
+		out += fmt.Sprintln(point.Time.Format("🟢 Mon - Jan 02 15:04"), "|", point.LowClouds, point.MidClouds, point.HighClouds)
 	}
 	out += "`"
 
@@ -274,7 +273,7 @@ func getAllStartPoints() DataPoints {
 func checkNext24H(bot *tgbotapi.BotAPI) {
 
 	chatID, _ := strconv.Atoi(os.Getenv("CHAT_ID"))
-	checkIntervalHours, _ := strconv.Atoi(os.Getenv("CHECK_INTERVAL_HOURS"))
+	cronExpression := os.Getenv("CRON_EXPRESSION")
 
 	msg := tgbotapi.NewMessage(int64(chatID), "")
 	msg.ChatID = int64(chatID)
@@ -284,18 +283,19 @@ func checkNext24H(bot *tgbotapi.BotAPI) {
 	var state State
 	state.Init()
 
-	_, err := s.Every(checkIntervalHours).Minutes().Do(func() {
+	_, err := s.Cron(cronExpression).Do(func() {
 		startPoints := getAllStartPoints()
 		next24HStartPoints := startPoints.next24H()
 		if len(next24HStartPoints) > 0 && !state.isGood() {
-			msg.Text = next24HStartPoints.Print()
+			msg.Text = "🥳 Хороша погода сьогодні!"
+			msg.Text += next24HStartPoints.Print()
 
 			if _, err := bot.Send(msg); err != nil {
 				log.Panic(err)
 			}
 			state.Set(true)
 		} else if len(next24HStartPoints) == 0 && state.isGood() {
-			msg.Text = "Хорошої погоди не буде наступні 24 години"
+			msg.Text = "Охрана, отмєна! Хорошої погоди не буде наступні 24 години 🥺"
 			if _, err := bot.Send(msg); err != nil {
 				log.Panic(err)
 			}
@@ -330,7 +330,7 @@ func handleChat(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 			msg.Text = getAllStartPoints().Print()
 			msg.ParseMode = "MarkdownV2"
 		} else {
-			msg.Text = "Не розумію"
+			msg.Text = "Не розумію!"
 		}
 
 		if _, err := bot.Send(msg); err != nil {
