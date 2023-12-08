@@ -25,4 +25,4 @@ docker run -it noclouds -e <see environment variables below>
 - `NIGHT_END_HOUR` - All events will be taken into account before this hour if the day. Dafault: `5`
 - `NIGHT_HOURS_STREAK` - Weather will be considered as "good" only if NIGHT_HOURS_STREAK hours in a row weather is good. Default: `4`
 - `CRON_EXPRESSION` - Background weather checks will be performed with this schedule. Default: `0 8,12,16,20 * * *`
-- `CHAT_ID` - Telegram ChatID where all notofications will be sent. Default: `none`
+- `CHAT_ID` - Telegram ChatID where all notifications will be sent. Default: `none`

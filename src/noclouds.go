@@ -23,6 +23,11 @@ const (
 	defaultNightHoursStreak = "4"
 	defaultMBApiEndpoint    = "https://my.meteoblue.com/packages/clouds-1h?"
 	defaultCronExpression   = "0 8,12,16,20 * * *"
+
+	badWeatherAlert   = "Охрана, отмєна! Сьогодні хмарно 🥺"
+	goodWeatherAlert  = "🥳 Хороша погода сьогодні!"
+	startMessage      = "Розпочнімо. Тицяй кнопку!"
+	badRequestMessage = "Не розумію..."
 )
 
 type MBCloudsResponse struct {
@@ -186,8 +191,9 @@ func (dp DataPoints) Print() string {
 
 // Init() goes to MB_API_ENDPOINT makes HTTPS request and stores result as MBCloudsResponse object
 func (mbresponse *MBCloudsResponse) Init() {
+	log.Println("INFO: Init() function started.")
 	client := &http.Client{}
-	MeteoblueAPIEndpoint := os.Getenv("MB_API_ENDPOINT")
+	MeteoblueAPIEndpoint := getEnv("MB_API_ENDPOINT", defaultMBApiEndpoint)
 
 	// Set paramenters
 	params := url.Values{}
@@ -198,33 +204,39 @@ func (mbresponse *MBCloudsResponse) Init() {
 	params.Add("format", "json")
 
 	// Make request to Meteoblue API
-	req, _ := http.NewRequest("GET", MeteoblueAPIEndpoint+params.Encode(), nil)
+	req, err := http.NewRequest("GET", MeteoblueAPIEndpoint+params.Encode(), nil)
+	if err != nil {
+		log.Println("ERROR: Couldn't create New Meteoblue API request", err)
+		return
+	}
 
 	parseFormErr := req.ParseForm()
 	if parseFormErr != nil {
-		fmt.Println(parseFormErr)
+		log.Println(parseFormErr)
+		return
 	}
 
 	resp, err := client.Do(req)
-
 	if err != nil {
-		fmt.Println("Failure : ", err)
+		log.Println("ERROR:", err)
+		return
 	}
 
 	// Read Response Body
 	if resp.StatusCode != 200 {
-		fmt.Println("response Status : ", resp.Status)
-		log.Fatal("Exit. Response from Meteoblue API is not 200 OK")
+		fmt.Println("ERROR: Meteoblue response code:", resp.Status)
+		return
 	}
 
+	log.Println("INFO: Got API response", resp.Status)
 	respBody, _ := io.ReadAll(resp.Body)
 
 	// Save response as MBCloudsResponse object
 	err = json.Unmarshal(respBody, mbresponse)
 	if err != nil {
-		log.Fatal(err)
+		log.Println("ERROR: cannot Unmarshal JSON", err)
+		return
 	}
-
 }
 
 // Points() return DataPoints object based on MBCloudsResponse fields
@@ -253,8 +265,9 @@ func (s State) Init() {
 	d := []byte("0")
 	err := os.WriteFile(defaultStateFilePath, d, 0644)
 	if err != nil {
-		log.Panic(err)
+		log.Println("ERROR: can't write to Status file", err)
 	}
+	log.Println("INFO: Status file initialized with 0 value")
 }
 
 // Set() writes state to the state file
@@ -263,22 +276,23 @@ func (s State) Set(b bool) {
 		d := []byte("1")
 		err := os.WriteFile(defaultStateFilePath, d, 0644)
 		if err != nil {
-			log.Panic(err)
+			log.Println("ERROR: can't write to Status file", err)
 		}
 	} else {
 		d := []byte("0")
 		err := os.WriteFile(defaultStateFilePath, d, 0644)
 		if err != nil {
-			log.Panic(err)
+			log.Println("ERROR: can't write to Status file", err)
 		}
 	}
+	log.Println("INFO: Status file updated with", b)
 }
 
 // isGood() returns true if state file contains "1" and false when "0"
 func (s State) isGood() bool {
 	dat, err := os.ReadFile(defaultStateFilePath)
 	if err != nil {
-		log.Panic(err)
+		log.Println("ERROR: can't read from Status file", err)
 	}
 
 	if string(dat) == "0" {
@@ -300,7 +314,10 @@ func getAllStartPoints() DataPoints {
 
 // checkNext24H() is cron job which monitors good/bad weather next 24 hours
 func checkNext24H(bot *tgbotapi.BotAPI) {
-	chatID, _ := strconv.Atoi(os.Getenv("CHAT_ID"))
+	chatID, err := strconv.Atoi(os.Getenv("CHAT_ID"))
+	if err != nil {
+		log.Println("ERROR: cannot convert CHAT_ID value to int")
+	}
 	cronExpression := getEnv("CRON_EXPRESSION", defaultCronExpression)
 
 	msg := tgbotapi.NewMessage(int64(chatID), "")
@@ -311,26 +328,30 @@ func checkNext24H(bot *tgbotapi.BotAPI) {
 	var state State
 	state.Init()
 
-	_, err := s.Cron(cronExpression).Do(func() {
+	_, err = s.Cron(cronExpression).Do(func() {
+		log.Println("INFO: starting cron job in background...")
 		startPoints := getAllStartPoints()
 		next24HStartPoints := startPoints.next24H()
 
 		if len(next24HStartPoints) > 0 && !state.isGood() {
-			msg.Text = "🥳 Хороша погода сьогодні!"
+			log.Println("INFO: good weather in the next 24h. Sending message")
+			msg.Text = goodWeatherAlert
 			msg.Text += next24HStartPoints.Print()
 
 			if _, err := bot.Send(msg); err != nil {
-				log.Panic(err)
+				log.Println("ERROR: can't send message to Telegram", err)
 			}
 			state.Set(true)
 		} else if len(next24HStartPoints) == 0 && state.isGood() {
-			msg.Text = "Охрана, отмєна! Хорошої погоди не буде наступні 24 години 🥺"
+			log.Println("INFO: No more good forecast for the next 24h. Sending message")
+			msg.Text = badWeatherAlert
+
 			if _, err := bot.Send(msg); err != nil {
-				log.Panic(err)
+				log.Println("ERROR: can't send message to Telegram", err)
 			}
 			state.Set(false)
 		} else {
-			log.Println("No changes in weather for the next 24 hour")
+			log.Println("INFO: No changes in weather forecast for the next 24 hours")
 		}
 	})
 	if err != nil {
@@ -356,16 +377,16 @@ func handleChat(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		msg.ReplyMarkup = numericKeyboard
 
 		if update.Message.IsCommand() && update.Message.Command() == "start" {
-			msg.Text = "Розпочнімо. Тицяй кнопку!"
+			msg.Text = startMessage
 		} else if update.Message.Text == "Прогноз на 7 днів" {
 			msg.Text = getAllStartPoints().Print()
 			msg.ParseMode = "MarkdownV2"
 		} else {
-			msg.Text = "Не розумію!"
+			msg.Text = badRequestMessage
 		}
 
 		if _, err := bot.Send(msg); err != nil {
-			log.Panic(err)
+			log.Println("ERROR: cannot send message", err)
 		}
 	}
 }
@@ -375,9 +396,7 @@ func main() {
 	if err != nil {
 		log.Panic(err)
 	}
-
-	// bot.Debug = true
-	log.Printf("Authorized on account %s", bot.Self.UserName)
+	log.Printf("INFO: Authorized on account %s", bot.Self.UserName)
 
 	// Start 24h check in background
 	checkNext24H(bot)
@@ -390,10 +409,3 @@ func main() {
 		handleChat(bot, update)
 	}
 }
-
-// TODO
-// add logging
-// add exception handling
-// set messages as constants
-// Dockerfile impovements
-// Autobuild and push
