@@ -336,8 +336,7 @@ func checkNext24H(bot *tgbotapi.BotAPI) {
 
 		if len(next24HStartPoints) > 0 && !state.isGood() {
 			log.Println("INFO: good weather in the next 24h. Sending message")
-			msg.Text = tgbotapi.EscapeText(goodWeatherAlert, "ModeMarkdownV2")
-			msg.Text += next24HStartPoints.Print()
+			msg.Text = tgbotapi.EscapeText(goodWeatherAlert, "ModeMarkdownV2") + next24HStartPoints.Print()
 
 			if _, err := bot.Send(msg); err != nil {
 				log.Println("ERROR: can't send message to Telegram", err)
