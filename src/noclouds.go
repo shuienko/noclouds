@@ -336,7 +336,7 @@ func checkNext24H(bot *tgbotapi.BotAPI) {
 
 		if len(next24HStartPoints) > 0 && !state.isGood() {
 			log.Println("INFO: good weather in the next 24h. Sending message")
-			msg.Text = goodWeatherAlert
+			msg.Text = tgbotapi.EscapeText(goodWeatherAlert, "ModeMarkdownV2")
 			msg.Text += next24HStartPoints.Print()
 
 			if _, err := bot.Send(msg); err != nil {
@@ -345,7 +345,7 @@ func checkNext24H(bot *tgbotapi.BotAPI) {
 			state.Set(true)
 		} else if len(next24HStartPoints) == 0 && state.isGood() {
 			log.Println("INFO: No more good forecast for the next 24h. Sending message")
-			msg.Text = badWeatherAlert
+			msg.Text = tgbotapi.EscapeText(badWeatherAlert, "ModeMarkdownV2")
 
 			if _, err := bot.Send(msg); err != nil {
 				log.Println("ERROR: can't send message to Telegram", err)
@@ -378,17 +378,17 @@ func handleChat(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		msg.ReplyMarkup = numericKeyboard
 
 		if update.Message.IsCommand() && update.Message.Command() == "start" {
-			msg.Text = startMessage
+			msg.Text = tgbotapi.EscapeText(startMessage, "ModeMarkdownV2")
 		} else if update.Message.Text == "Прогноз на 7 днів" {
 			forecast := getAllStartPoints().Print()
 			if forecast == "" {
-				msg.Text = noGoodWeather7d
+				msg.Text = tgbotapi.EscapeText(noGoodWeather7d, "ModeMarkdownV2")
 			} else {
 				msg.Text = forecast
 			}
 			msg.ParseMode = "MarkdownV2"
 		} else {
-			msg.Text = badRequestMessage
+			msg.Text = tgbotapi.EscapeText(badRequestMessage, "ModeMarkdownV2")
 		}
 
 		log.Println("INFO: sending message to Telegram")
