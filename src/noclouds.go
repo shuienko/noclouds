@@ -383,8 +383,9 @@ func handleChat(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 			forecast := getAllStartPoints().Print()
 			if forecast == "" {
 				msg.Text = noGoodWeather7d
+			} else {
+				msg.Text = forecast
 			}
-			msg.Text = forecast
 			msg.ParseMode = "MarkdownV2"
 		} else {
 			msg.Text = badRequestMessage
