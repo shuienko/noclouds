@@ -28,6 +28,7 @@ const (
 	goodWeatherAlert  = "🥳 Хороша погода сьогодні."
 	startMessage      = "Розпочнімо. Тицяй кнопку."
 	badRequestMessage = "Не розумію..."
+	noGoodWeather7d   = "Хмарно наступні 7 днів 🥺"
 )
 
 type MBCloudsResponse struct {
@@ -379,7 +380,11 @@ func handleChat(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		if update.Message.IsCommand() && update.Message.Command() == "start" {
 			msg.Text = startMessage
 		} else if update.Message.Text == "Прогноз на 7 днів" {
-			msg.Text = getAllStartPoints().Print()
+			forecast := getAllStartPoints().Print()
+			if forecast == "" {
+				msg.Text = noGoodWeather7d
+			}
+			msg.Text = forecast
 			msg.ParseMode = "MarkdownV2"
 		} else {
 			msg.Text = badRequestMessage
