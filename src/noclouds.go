@@ -96,6 +96,7 @@ func toInt64(s string) int64 {
 	return 0
 }
 
+// mono() returns monospaces escaped Markdown
 func mono(s string) string {
 	return "`" + tgbotapi.EscapeText("MarkdownV2", s) + "`"
 }
