@@ -24,8 +24,8 @@ const (
 	defaultMBApiEndpoint    = "https://my.meteoblue.com/packages/clouds-1h?"
 	defaultCronExpression   = "0 8,12,16,20 * * *"
 
-	badWeatherAlert   = "Охрана, отмєна... Сьогодні хмарно 🥺"
-	goodWeatherAlert  = "🥳 Хороша погода сьогодні."
+	badWeatherAlert   = "Охрана, отмєна! Сьогодні хмарно 🥺"
+	goodWeatherAlert  = "Хороша погода сьогодні! 🥳"
 	startMessage      = "Розпочнімо. Тицяй кнопку."
 	badRequestMessage = "Не розумію..."
 	noGoodWeather7d   = "Хмарно наступні 7 днів 🥺"
@@ -94,6 +94,10 @@ func toInt64(s string) int64 {
 		return int64(out)
 	}
 	return 0
+}
+
+func mono(s string) string {
+	return "`" + tgbotapi.EscapeText("MarkdownV2", s) + "`"
 }
 
 // isGood() returns true if Low, Mid and High clouds percentage is less than MAX_CLOUD_COVER
@@ -181,11 +185,10 @@ func (dp DataPoints) next24H() DataPoints {
 
 // Print() returns Markdown string which represents DataPoints
 func (dp DataPoints) Print() string {
-	out := "`"
+	out := ""
 	for _, point := range dp {
 		out += fmt.Sprintln(point.Time.Format("🟢 Mon - Jan 02 15:04"), "|", point.LowClouds, point.MidClouds, point.HighClouds)
 	}
-	out += "`"
 
 	return out
 }
@@ -336,7 +339,7 @@ func checkNext24H(bot *tgbotapi.BotAPI) {
 
 		if len(next24HStartPoints) > 0 && !state.isGood() {
 			log.Println("INFO: good weather in the next 24h. Sending message")
-			msg.Text = tgbotapi.EscapeText(goodWeatherAlert, "ModeMarkdownV2") + next24HStartPoints.Print()
+			msg.Text = mono(goodWeatherAlert + "\n\n" + next24HStartPoints.Print())
 
 			if _, err := bot.Send(msg); err != nil {
 				log.Println("ERROR: can't send message to Telegram", err)
@@ -344,7 +347,7 @@ func checkNext24H(bot *tgbotapi.BotAPI) {
 			state.Set(true)
 		} else if len(next24HStartPoints) == 0 && state.isGood() {
 			log.Println("INFO: No more good forecast for the next 24h. Sending message")
-			msg.Text = tgbotapi.EscapeText(badWeatherAlert, "ModeMarkdownV2")
+			msg.Text = mono(badWeatherAlert)
 
 			if _, err := bot.Send(msg); err != nil {
 				log.Println("ERROR: can't send message to Telegram", err)
@@ -375,19 +378,19 @@ func handleChat(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
 		msg.ReplyMarkup = numericKeyboard
+		msg.ParseMode = "MarkdownV2"
 
 		if update.Message.IsCommand() && update.Message.Command() == "start" {
-			msg.Text = tgbotapi.EscapeText(startMessage, "ModeMarkdownV2")
+			msg.Text = mono(startMessage)
 		} else if update.Message.Text == "Прогноз на 7 днів" {
 			forecast := getAllStartPoints().Print()
 			if forecast == "" {
-				msg.Text = tgbotapi.EscapeText(noGoodWeather7d, "ModeMarkdownV2")
+				msg.Text = mono(noGoodWeather7d)
 			} else {
-				msg.Text = forecast
+				msg.Text = mono(forecast)
 			}
-			msg.ParseMode = "MarkdownV2"
 		} else {
-			msg.Text = tgbotapi.EscapeText(badRequestMessage, "ModeMarkdownV2")
+			msg.Text = mono(badRequestMessage)
 		}
 
 		log.Println("INFO: sending message to Telegram")
