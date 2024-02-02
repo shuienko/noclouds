@@ -24,7 +24,7 @@ const (
 	defaultMBApiEndpoint    = "https://my.meteoblue.com/packages/clouds-1h?"
 	defaultCronExpression   = "0 8,12,16,20 * * *"
 
-	badWeatherAlert   = "Охрана, отмєна! Сьогодні хмарно 🥺"
+	badWeatherAlert   = "Сьогодні хмарно 🥺"
 	goodWeatherAlert  = "Хороша погода сьогодні! 🥳"
 	startMessage      = "Розпочнімо. Тицяй кнопку."
 	badRequestMessage = "Не розумію..."
