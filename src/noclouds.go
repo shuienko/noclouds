@@ -365,8 +365,19 @@ func checkNext24H(bot *tgbotapi.BotAPI) {
 	s.StartAsync()
 }
 
+// authChat() makes sure no one else excet me can interact with this bot
+func authChat(chatID int64) bool {
+	chatIDString := strconv.Itoa(int(chatID))
+	return chatIDString == os.Getenv("CHAT_ID")
+}
+
 // handleChat() is telegram bot handler for chat interactions
 func handleChat(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
+	if !authChat(update.Message.Chat.ID) {
+		log.Printf("Chat ID %d unauthorized. Exit.\n", update.Message.Chat.ID)
+		return
+	}
+
 	// Set keyboard
 	var numericKeyboard = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
