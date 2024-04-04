@@ -221,22 +221,26 @@ func (dp DataPoints) next24H() DataPoints {
 }
 
 // setMoonPhase() sets MoonPhase value for point in DataPoints
-func (dp *DataPoints) setMoonPhase() {
+func (dp DataPoints) setMoonPhase() DataPoints {
 	data := MBSunMoonResponse{}
 	data.Init()
 
-	for _, point := range *dp {
+	updatedPoints := DataPoints{}
+
+	for _, point := range dp {
 		point.MoonPhase = data.getMoonPhase(point.Time)
-		fmt.Println(point)
+		updatedPoints = append(updatedPoints, point)
 	}
 
+	return updatedPoints
 }
 
 // Print() returns Markdown string which represents DataPoints
 func (dp DataPoints) Print() string {
 	out := ""
 	for _, point := range dp {
-		out += fmt.Sprintln(point.MoonPhase, "|", point.Time.Format("Mon - Jan 02 15:04"), "|", point.LowClouds, point.MidClouds, point.HighClouds)
+		// out += fmt.Sprintln(point.MoonPhase, "|", point.Time.Format("Mon - Jan 02 15:04"), "|", point.LowClouds, point.MidClouds, point.HighClouds)
+		out += fmt.Sprintf("%3d | %s |%2d %2d %2d\n", point.MoonPhase, point.Time.Format("Mon - Jan 02 15h"), point.LowClouds, point.MidClouds, point.HighClouds)
 	}
 
 	return out
@@ -345,12 +349,8 @@ func (mbresponse MBSunMoonResponse) getMoonPhase(t time.Time) int64 {
 	diff := t.Sub(now)
 	index := int(diff.Hours() / 24)
 
-	fmt.Println("index =", index)
-
-	fmt.Println(mbresponse.DataDay.Moonphaseangle)
 	angle := mbresponse.DataDay.Moonphaseangle[index]
 
-	fmt.Println("angle = ", angle)
 	if angle > 180 {
 		return int64(100 * (360 - angle) / 180)
 	} else {
@@ -455,8 +455,7 @@ func checkNext24H(bot *tgbotapi.BotAPI) {
 
 		if len(next24HStartPoints) > 0 && !state.isGood() {
 			log.Println("INFO: good weather in the next 24h. Sending message")
-			next24HStartPoints.setMoonPhase()
-			msg.Text = mono(goodWeatherAlert + "\n\n" + next24HStartPoints.Print())
+			msg.Text = mono(goodWeatherAlert + "\n\n" + next24HStartPoints.setMoonPhase().Print())
 
 			if _, err := bot.Send(msg); err != nil {
 				log.Println("ERROR: can't send message to Telegram", err)
@@ -511,10 +510,7 @@ func handleChat(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		if update.Message.IsCommand() && update.Message.Command() == "start" {
 			msg.Text = mono(startMessage)
 		} else if update.Message.Text == "Прогноз на 7 днів" {
-			points := getAllStartPoints()
-			points.setMoonPhase()
-
-			forecast := points.Print()
+			forecast := getAllStartPoints().setMoonPhase().Print()
 			if forecast == "" {
 				msg.Text = mono(noGoodWeather7d)
 			} else {
