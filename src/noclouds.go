@@ -21,7 +21,8 @@ const (
 	defaultNightStartHour   = "22"
 	defaultNightEndHour     = "5"
 	defaultNightHoursStreak = "4"
-	defaultMBApiEndpoint    = "https://my.meteoblue.com/packages/clouds-1h?"
+	cloudsMBApiEndpoint     = "https://my.meteoblue.com/packages/clouds-1h?"
+	sunmoonMBApiEndpoint    = "https://my.meteoblue.com/packages/sunmoon?"
 	defaultCronExpression   = "0 8,12,16,20 * * *"
 
 	badWeatherAlert   = "Сьогодні хмарно 🥺"
@@ -31,10 +32,44 @@ const (
 	noGoodWeather7d   = "Хмарно наступні 7 днів 🥺"
 )
 
+type MBSunMoonResponse struct {
+	Metadata SunMoonMetadata `json:"metadata"`
+	Units    SunMoonUnits    `json:"units"`
+	DataDay  DataDay         `json:"data_day"`
+}
+
+type DataDay struct {
+	Time                 []string  `json:"time"`
+	Moonrise             []string  `json:"moonrise"`
+	Moonset              []string  `json:"moonset"`
+	Moonphaseangle       []float64 `json:"moonphaseangle"`
+	Sunset               []string  `json:"sunset"`
+	Moonphasename        []string  `json:"moonphasename"`
+	Moonphasetransittime []string  `json:"moonphasetransittime"`
+	Sunrise              []string  `json:"sunrise"`
+	Moonage              []float64 `json:"moonage"`
+}
+
+type SunMoonMetadata struct {
+	ModelrunUpdatetimeUTC string  `json:"modelrun_updatetime_utc"`
+	Name                  string  `json:"name"`
+	Height                int64   `json:"height"`
+	TimezoneAbbrevation   string  `json:"timezone_abbrevation"`
+	Latitude              float64 `json:"latitude"`
+	ModelrunUTC           string  `json:"modelrun_utc"`
+	Longitude             float64 `json:"longitude"`
+	UTCTimeoffset         float64 `json:"utc_timeoffset"`
+	GenerationTimeMS      float64 `json:"generation_time_ms"`
+}
+
+type SunMoonUnits struct {
+	Time string `json:"time"`
+}
+
 type MBCloudsResponse struct {
-	Metadata Metadata `json:"metadata"`
-	Units    Units    `json:"units"`
-	Data1H   Data1H   `json:"data_1h"`
+	Metadata CloudsMetadata `json:"metadata"`
+	Units    CloudsUnits    `json:"units"`
+	Data1H   Data1H         `json:"data_1h"`
 }
 
 type Data1H struct {
@@ -47,7 +82,7 @@ type Data1H struct {
 	Totalcloudcover []int64  `json:"totalcloudcover"`
 }
 
-type Metadata struct {
+type CloudsMetadata struct {
 	Name                  string  `json:"name"`
 	Latitude              float64 `json:"latitude"`
 	Longitude             float64 `json:"longitude"`
@@ -58,7 +93,7 @@ type Metadata struct {
 	ModelrunUpdatetimeUTC string  `json:"modelrun_updatetime_utc"`
 }
 
-type Units struct {
+type CloudsUnits struct {
 	Time         string `json:"time"`
 	Cloudcover   string `json:"cloudcover"`
 	Sunshinetime string `json:"sunshinetime"`
@@ -70,6 +105,7 @@ type DataPoint struct {
 	LowClouds  int64
 	MidClouds  int64
 	HighClouds int64
+	MoonPhase  int64
 }
 
 type DataPoints []DataPoint
@@ -184,11 +220,23 @@ func (dp DataPoints) next24H() DataPoints {
 	return lessThan24H
 }
 
+// setMoonPhase() sets MoonPhase value for point in DataPoints
+func (dp *DataPoints) setMoonPhase() {
+	data := MBSunMoonResponse{}
+	data.Init()
+
+	for _, point := range *dp {
+		point.MoonPhase = data.getMoonPhase(point.Time)
+		fmt.Println(point)
+	}
+
+}
+
 // Print() returns Markdown string which represents DataPoints
 func (dp DataPoints) Print() string {
 	out := ""
 	for _, point := range dp {
-		out += fmt.Sprintln(point.Time.Format("🟢 Mon - Jan 02 15:04"), "|", point.LowClouds, point.MidClouds, point.HighClouds)
+		out += fmt.Sprintln(point.MoonPhase, "|", point.Time.Format("Mon - Jan 02 15:04"), "|", point.LowClouds, point.MidClouds, point.HighClouds)
 	}
 
 	return out
@@ -196,9 +244,9 @@ func (dp DataPoints) Print() string {
 
 // Init() goes to MB_API_ENDPOINT makes HTTPS request and stores result as MBCloudsResponse object
 func (mbresponse *MBCloudsResponse) Init() {
-	log.Println("INFO: Making request to Meteoblue API and parsing response")
+	log.Println("INFO: Making request to Meteoblue API /clouds and parsing response")
 	client := &http.Client{}
-	MeteoblueAPIEndpoint := getEnv("MB_API_ENDPOINT", defaultMBApiEndpoint)
+	MeteoblueAPIEndpoint := getEnv("MB_API_ENDPOINT", cloudsMBApiEndpoint)
 
 	// Set paramenters
 	params := url.Values{}
@@ -242,6 +290,73 @@ func (mbresponse *MBCloudsResponse) Init() {
 		log.Println("ERROR: cannot Unmarshal JSON", err)
 		return
 	}
+}
+
+// Init() goes to /sunmoon makes HTTPS request and stores result as MBSunMoonResponse object
+func (mbresponse *MBSunMoonResponse) Init() {
+	log.Println("INFO: Making request to Meteoblue API /sunmoon and parsing response")
+	client := &http.Client{}
+
+	// Set paramenters
+	params := url.Values{}
+	params.Add("apikey", os.Getenv("MB_API_KEY"))
+	params.Add("lat", os.Getenv("MB_LAT"))
+	params.Add("lon", os.Getenv("MB_LON"))
+
+	// Make request to Meteoblue API
+	req, err := http.NewRequest("GET", sunmoonMBApiEndpoint+params.Encode(), nil)
+	if err != nil {
+		log.Println("ERROR: Couldn't create New Meteoblue API request", err)
+		return
+	}
+
+	parseFormErr := req.ParseForm()
+	if parseFormErr != nil {
+		log.Println(parseFormErr)
+		return
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("ERROR:", err)
+		return
+	}
+
+	// Read Response Body
+	if resp.StatusCode != 200 {
+		fmt.Println("ERROR: Meteoblue response code:", resp.Status)
+		return
+	}
+
+	log.Println("INFO: Got API response", resp.Status)
+	respBody, _ := io.ReadAll(resp.Body)
+
+	// Save response as MBCloudsResponse object
+	err = json.Unmarshal(respBody, mbresponse)
+	if err != nil {
+		log.Println("ERROR: cannot Unmarshal JSON", err)
+		return
+	}
+}
+
+// getMoonPhase() return Moon Phase in %
+func (mbresponse MBSunMoonResponse) getMoonPhase(t time.Time) int64 {
+	now := time.Now()
+	diff := t.Sub(now)
+	index := int(diff.Hours() / 24)
+
+	fmt.Println("index =", index)
+
+	fmt.Println(mbresponse.DataDay.Moonphaseangle)
+	angle := mbresponse.DataDay.Moonphaseangle[index]
+
+	fmt.Println("angle = ", angle)
+	if angle > 180 {
+		return int64(100 * (360 - angle) / 180)
+	} else {
+		return int64(100 * (180 - angle) / 180)
+	}
+
 }
 
 // Points() return DataPoints object based on MBCloudsResponse fields
@@ -340,6 +455,7 @@ func checkNext24H(bot *tgbotapi.BotAPI) {
 
 		if len(next24HStartPoints) > 0 && !state.isGood() {
 			log.Println("INFO: good weather in the next 24h. Sending message")
+			next24HStartPoints.setMoonPhase()
 			msg.Text = mono(goodWeatherAlert + "\n\n" + next24HStartPoints.Print())
 
 			if _, err := bot.Send(msg); err != nil {
@@ -395,7 +511,10 @@ func handleChat(bot *tgbotapi.BotAPI, update tgbotapi.Update) {
 		if update.Message.IsCommand() && update.Message.Command() == "start" {
 			msg.Text = mono(startMessage)
 		} else if update.Message.Text == "Прогноз на 7 днів" {
-			forecast := getAllStartPoints().Print()
+			points := getAllStartPoints()
+			points.setMoonPhase()
+
+			forecast := points.Print()
 			if forecast == "" {
 				msg.Text = mono(noGoodWeather7d)
 			} else {
