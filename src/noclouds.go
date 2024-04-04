@@ -239,7 +239,6 @@ func (dp DataPoints) setMoonPhase() DataPoints {
 func (dp DataPoints) Print() string {
 	out := ""
 	for _, point := range dp {
-		// out += fmt.Sprintln(point.MoonPhase, "|", point.Time.Format("Mon - Jan 02 15:04"), "|", point.LowClouds, point.MidClouds, point.HighClouds)
 		out += fmt.Sprintf("%3d | %s |%2d %2d %2d\n", point.MoonPhase, point.Time.Format("Mon - Jan 02 15h"), point.LowClouds, point.MidClouds, point.HighClouds)
 	}
 
