@@ -353,7 +353,7 @@ func (mbresponse MBSunMoonResponse) getMoonPhase(t time.Time) int64 {
 	if angle > 180 {
 		return int64(100 * (360 - angle) / 180)
 	} else {
-		return int64(100 * (180 - angle) / 180)
+		return int64(100 * angle / 180)
 	}
 
 }
