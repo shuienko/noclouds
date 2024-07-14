@@ -18,5 +18,8 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_PASS }}
       
-      - name: Build and Push noclouds image
-        run: docker build . -t ${{ secrets.DOCKERHUB_USER }}/noclouds:latest --platform linux/arm64,linux/amd64 --push
+      - name: Build and Push AMD64 noclouds image
+        run: docker build . -t ${{ secrets.DOCKERHUB_USER }}/noclouds:latest --platform linux/amd64 --push
+
+      - name: Build and Push ARM64 noclouds image
+        run: docker build . -t ${{ secrets.DOCKERHUB_USER }}/noclouds:latest --platform linux/arm64 --push
