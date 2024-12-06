@@ -111,7 +111,7 @@ func strToFloat(input string) (float64, error) {
 	// Convert string to float64
 	floatValue, err := strconv.ParseFloat(input, 64)
 	if err != nil {
-		return 0, fmt.Errorf("Error: failed to convert string to float64: %w", err)
+		return 0, fmt.Errorf("error: failed to convert string to float64: %w", err)
 	}
 	return floatValue, nil
 }
