@@ -16,7 +16,7 @@ docker run -it -e <see environment variables below> noclouds
 ### Environment variables
 #### Mandatory
 - `LAT` - Latitude of your chosen location. Default: ``
-- `LON` - Longitude of your chisen location. Default: ``
+- `LON` - Longitude of your chosen location. Default: ``
 - `CHAT_ID` - Telegram ChatID where all notifications will be sent. Default: ``
 - `TG_BOT_TOKEN` - Telegram bot token. Default: ``
 
