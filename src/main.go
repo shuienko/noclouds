@@ -11,6 +11,11 @@ func main() {
 	// Load the configuration
 	config.LoadConfig()
 
+	// Check that mandatory environment variables are set
+	if config.AppConfig.TelegramBotToken == "" || config.AppConfig.TelegramChatID == "" || config.AppConfig.Latitude == "" || config.AppConfig.Lognitude == "" {
+		log.Panic("One of environment variables TG_BOT_TOKEN, CHAT_ID, LAT, or LON is not set!")
+	}
+
 	// Create Bot instance
 	bot, err := tgbotapi.NewBotAPI(config.AppConfig.TelegramBotToken)
 	if err != nil {
