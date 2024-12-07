@@ -19,6 +19,7 @@ docker run -it -e <see environment variables below> noclouds
 - `CHAT_ID` - Telegram ChatID where all notifications will be sent. Default: ``
 - `TG_BOT_TOKEN` - Telegram bot token. Default: ``
 
+
 - `API_ENDPOINT` - Open-Meteo API Endpoint. Default: `https://api.open-meteo.com/v1/forecast?`
 - `REQUEST_PARAMS` - Open-Meteo API request parameters. Default: `temperature_2m,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m,wind_gusts_10m`
 - `STATE_FILE_PATH` - Path to text file with the status. Default: `state.txt`
