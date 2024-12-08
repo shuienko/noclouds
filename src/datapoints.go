@@ -30,7 +30,7 @@ func (d DataPoint) atNight(nightStart, nightEnd int) bool {
 func (dp DataPoints) Good(config config.Config) DataPoints {
 	good := DataPoints{}
 	for _, v := range dp {
-		if v.Time.After(time.Now()) && v.isGood(config.MaxCloudCover, config.MaxWind) && v.atNight(config.NightEndsAt, config.NightEndsAt) {
+		if v.Time.After(time.Now()) && v.isGood(config.MaxCloudCover, config.MaxWind) && v.atNight(config.NightStartsAt, config.NightEndsAt) {
 			good = append(good, v)
 		}
 	}
