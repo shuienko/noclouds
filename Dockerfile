@@ -15,4 +15,6 @@ RUN go build -v -o /usr/local/bin/app .
 FROM alpine:3.20.1
 COPY --from=build /usr/local/bin/app /usr/local/bin/app
 
+HEALTHCHECK --interval=300s --timeout=10s --start-period=10s --retries=2 CMD [ -f /state.txt ] || exit 1
+
 ENTRYPOINT ["/usr/local/bin/app"]
