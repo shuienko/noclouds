@@ -36,7 +36,7 @@ func LoadConfig() {
 		OpenMeteoRequestParams: getEnv("REQUEST_PARAMS", "temperature_2m,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m,wind_gusts_10m"),
 		StateFilePath:          getEnv("STATE_FILE_PATH", "state.txt"),
 		MaxCloudCover:          toInt64(getEnv("MAX_CLOUD_COVER", "25")),
-		MaxWind:                strToFloat(getEnv("MAX_WIND", "20")),
+		MaxWind:                strToFloat(getEnv("MAX_WIND", "15")),
 		NightStartsAt:          toInt(getEnv("NIGHT_STARTS_AT", "22")),
 		NightEndsAt:            toInt(getEnv("NIGHT_ENDS_AT", "5")),
 		GoodWeatherWindow:      toInt(getEnv("GOOD_WEATHER_WINDOW", "4")),
