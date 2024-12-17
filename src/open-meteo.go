@@ -62,6 +62,7 @@ func (response *OpenMeteoAPIResponse) Init(apiEndpoint, parameters, lat, lon str
 	params.Add("latitude", lat)
 	params.Add("longitude", lon)
 	params.Add("hourly", parameters)
+	params.Add("timezone", "auto")
 
 	// Make request to Open-Meteo API
 	req, err := http.NewRequest("GET", apiEndpoint+params.Encode(), nil)
