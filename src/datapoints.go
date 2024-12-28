@@ -103,8 +103,8 @@ func (dp DataPoints) Print() string {
 	for _, point := range dp {
 		out += fmt.Sprintf("##### %s\n", point.Time.Format("Monday - Jan 02 15:04"))
 		out += fmt.Sprintf("Moon:        %d%%\n", point.MoonIllum)
-		out += fmt.Sprintf("Wind:        %f km/h\n", point.WindSpeed)
-		out += fmt.Sprintf("Gusts:       %f km/h\n", point.WindGusts)
+		out += fmt.Sprintf("Wind:        %.1f km/h\n", point.WindSpeed)
+		out += fmt.Sprintf("Gusts:       %.1f km/h\n", point.WindGusts)
 		out += fmt.Sprintf("Clouds Low:  %d%%\n", point.LowClouds)
 		out += fmt.Sprintf("Clouds Mid:  %d%%\n", point.MidClouds)
 		out += fmt.Sprintf("Clouds High: %d%%\n", point.HighClouds)
