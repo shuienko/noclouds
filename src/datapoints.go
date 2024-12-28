@@ -101,7 +101,13 @@ func (dp DataPoints) setMoonIllumination() DataPoints {
 func (dp DataPoints) Print() string {
 	out := ""
 	for _, point := range dp {
-		out += fmt.Sprintf("%3d%% | %4.1f | %s |%2d %2d %2d\n", point.MoonIllum, point.WindGusts, point.Time.Format("Mon - 02 15h"), point.LowClouds, point.MidClouds, point.HighClouds)
+		out += fmt.Sprintf("##### %s\n", point.Time.Format("Monday - Jan 02 15:04"))
+		out += fmt.Sprintf("Moon: %3d%%\n", point.MoonIllum)
+		out += fmt.Sprintf("Wind: %4.1f km/h\n", point.WindSpeed)
+		out += fmt.Sprintf("Gusts: %4.1f km/h\n", point.WindGusts)
+		out += fmt.Sprintf("Clouds Low: %3d%%\n", point.LowClouds)
+		out += fmt.Sprintf("Clouds Mid: %3d%%\n", point.MidClouds)
+		out += fmt.Sprintf("Clouds High: %3d%%\n", point.HighClouds)
 	}
 
 	return out
