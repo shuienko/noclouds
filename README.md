@@ -29,4 +29,4 @@ docker run -it -e <see environment variables below> noclouds
 - `NIGHT_STARTS_AT` - All events will be taked into account starting from this hour if the day. Dafault: `22`
 - `NIGHT_ENDS_AT` - All events will be taken into account before this hour if the day. Dafault: `5`
 - `GOOD_WEATHER_WINDOW` - Weather will be considered as "good" only if GOOD_WEATHER_WINDOW hours in a row weather is good. Default: `4`
-- `CRON_EXPRESSION` - Background weather checks will be performed with this schedule. Default: `0 8,12,16,20 * * *`
+- `CRON_EXPRESSION` - Background weather checks will be performed with this schedule. Default: `0 10,20 * * *`
