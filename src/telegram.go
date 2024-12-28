@@ -11,11 +11,10 @@ import (
 )
 
 const (
-	badWeatherAlert   = "Сьогодні хмарно 🥺"
+	badWeatherAlert   = "Сьогодні погана погода для спостережень 🥺"
 	goodWeatherAlert  = "Хороша погода сьогодні! 🥳"
-	startMessage      = "Розпочнімо. Тицяй кнопку."
+	startMessage      = "Окей. Я стежитиму за погодою. Як будуть зміни - маякну."
 	badRequestMessage = "Не розумію..."
-	noGoodWeather7d   = "Хмарно наступні 7 днів 🥺"
 )
 
 // mono() returns monospaced escaped Markdown
@@ -83,29 +82,15 @@ func handleChat(bot *tgbotapi.BotAPI, update tgbotapi.Update, config config.Conf
 		return
 	}
 
-	// Set keyboard
-	var numericKeyboard = tgbotapi.NewReplyKeyboard(
-		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton("Прогноз на 7 днів"),
-		),
-	)
 	// Listen for updates
 	if update.Message != nil {
 		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
 
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
-		msg.ReplyMarkup = numericKeyboard
 		msg.ParseMode = "MarkdownV2"
 
 		if update.Message.IsCommand() && update.Message.Command() == "start" {
 			msg.Text = mono(startMessage)
-		} else if update.Message.Text == "Прогноз на 7 днів" {
-			forecast := getAllStartPoints(config).setMoonIllumination().Print()
-			if forecast == "" {
-				msg.Text = mono(noGoodWeather7d)
-			} else {
-				msg.Text = mono(forecast)
-			}
 		} else {
 			msg.Text = mono(badRequestMessage)
 		}

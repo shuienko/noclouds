@@ -106,7 +106,7 @@ func (data OpenMeteoAPIResponse) Points() DataPoints {
 
 	for i := 0; i < len(data.Hourly.Time); i++ {
 		timeString := data.Hourly.Time[i]
-		time, _ := time.ParseInLocation("2006-01-02T15:04", timeString, time.FixedZone(data.TimezoneAbbreviation, 1*60*60))
+		time, _ := time.ParseInLocation("2006-01-02T15:04", timeString, time.FixedZone(data.TimezoneAbbreviation, 0))
 
 		point := DataPoint{
 			Time:       time,

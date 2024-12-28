@@ -40,7 +40,7 @@ func LoadConfig() {
 		NightStartsAt:          toInt(getEnv("NIGHT_STARTS_AT", "22")),
 		NightEndsAt:            toInt(getEnv("NIGHT_ENDS_AT", "5")),
 		GoodWeatherWindow:      toInt(getEnv("GOOD_WEATHER_WINDOW", "4")),
-		CronExpression:         getEnv("CRON_EXPRESSION", "0 8,12,16,20 * * *"),
+		CronExpression:         getEnv("CRON_EXPRESSION", "0 10,20 * * *"),
 	}
 }
 
