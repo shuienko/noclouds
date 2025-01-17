@@ -59,7 +59,19 @@ func checkNext24H(bot *tgbotapi.BotAPI, config config.Config) {
 			}
 			state.Set(false, config.StateFilePath)
 		} else {
-			log.Println("INFO: No changes in weather forecast for the next 24 hours")
+			log.Println("INFO: No changes in weather forecast for the next 24 hours.")
+
+			if time.Now().UTC().Hour() == 10 && state.isGood(config.StateFilePath) {
+				msg.Text = mono(goodWeatherAlert + "\n\n" + next24HStartPoints.setMoonIllumination().Print())
+				log.Println("INFO: Sending morning alert about good weather")
+			} else if time.Now().UTC().Hour() == 10 && !state.isGood(config.StateFilePath) {
+				msg.Text = mono(badWeatherAlert)
+				log.Println("INFO: Sending morning alert about bad weather")
+			}
+
+			if _, err := bot.Send(msg); err != nil {
+				log.Println("ERROR: can't send message to Telegram", err)
+			}
 		}
 	})
 	if err != nil {
